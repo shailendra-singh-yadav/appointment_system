@@ -33,7 +33,6 @@ class ChatController extends Controller
             'status' => 'Message Sent!',
         ]);
     }
-
     public function send(Request $request)
     {
         $message = [
