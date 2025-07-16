@@ -1,4 +1,7 @@
 <script setup>
+import MainLayout from '@/Layouts/AuthenticatedLayout.vue'
+defineOptions({ layout: MainLayout })
+
 import { onMounted, ref } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import axios from 'axios'

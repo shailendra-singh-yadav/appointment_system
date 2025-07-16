@@ -66,6 +66,13 @@ const formatDateTime = (datetime) => {
             Edit
             </Link>
 
+            <Link
+            :href="`/appointments/${appointment.id}/cancel`"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-2 py-2 rounded-lg shadow transition"
+            >
+             Appointment Cancel
+            </Link>
+
           </tr>
         </tbody>
       </table>

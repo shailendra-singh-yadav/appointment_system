@@ -1,10 +1,22 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import { useToast } from 'vue-toastification'
+import { usePage } from '@inertiajs/vue3'
 
 const toast = useToast()
+const page = usePage()
+
+onMounted(() => {
+  if (page.props.flash.success) {
+    toast.success(page.props.flash.success)
+  }
+
+  if (page.props.flash.error) {
+    toast.error(page.props.flash.error)
+  }
+})
 
 //Define props to get data from  controller
 const props = defineProps({
@@ -42,17 +54,22 @@ async function submit() {
   }
 
   try {
-    await form.post('/appointments', {
-      preserveScroll: true,
-    })
-    toast.success('Appointment booked and invitations sent!')
-  } catch (e) {
-    if (Object.values(form.errors).length) {
-      toast.error(Object.values(form.errors)[0])
-    } else {
-      toast.error('Something went wrong, please try again.')
+      await form.post('/appointments', {
+        preserveScroll: true,
+          onSuccess: (response) => {
+          toast.success('Appointment booked and invitations sent!')
+          setTimeout(function(){
+            window.location.href=route('appointments.index');
+          },3000)
+        },
+      })
+    } catch (e) {
+      if (Object.values(form.errors).length) {
+        toast.error(Object.values(form.errors)[0])
+      } else {
+        toast.error('Something went wrong, please try again.')
+      }
     }
-  }
 }
 </script>
 
@@ -90,27 +107,49 @@ async function submit() {
           <p v-if="form.errors.date" class="text-red-600 text-sm">{{ form.errors.date }}</p>
         </div>
 
+      
         <!-- Guest Emails -->
-        <div class="mb-6">
-          <label class="block font-medium mb-2">Guest Emails</label>
+      <div class="mb-6">
+        <label class="block font-medium mb-2">Guest Emails</label>
 
-          <div v-for="(email, index) in form.guests" :key="index"
-               class="flex items-center space-x-2 mb-2">
-            <input v-model="form.guests[index]" type="email" placeholder="guest@example.com"
-                   class="flex-1 border rounded px-3 py-2"/>
-            <button type="button" v-if="form.guests.length > 1"
-                    @click="removeGuest(index)"
-                    class="text-red-500 text-lg leading-none">×</button>
+        <div v-for="(email, index) in form.guests" :key="index" class="flex flex-col mb-2">
+          <div class="flex items-center space-x-2">
+            <input
+              v-model="form.guests[index]"
+              type="email"
+              placeholder="guest@example.com"
+              class="flex-1 border rounded px-3 py-2"
+            />
+            <button
+              type="button"
+              v-if="form.guests.length > 1"
+              @click="removeGuest(index)"
+              class="text-red-500 text-lg leading-none"
+            >
+              ×
+            </button>
           </div>
 
-          <button type="button" @click="addGuest" class="text-blue-600">
-            + Add Guest
-          </button>
+        <!-- Show validation error for individual guest -->
+        <p
+          v-if="form.errors[`guests.${index}`]"
+          class="text-red-600 text-sm mt-1"
+        >
+          {{ form.errors[`guests.${index}`] }}
+        </p>
+      </div>
 
-          <p v-if="form.errors.guests" class="text-red-600 text-sm mt-1">
-            {{ form.errors.guests }}
-          </p>
-        </div>
+      <!-- Button to add guest (outside loop) -->
+      <button type="button" @click="addGuest" class="text-blue-600 mt-1">
+        + Add Guest
+      </button>
+
+      <!--  Show error if no guests provided -->
+      <p v-if="form.errors.guests" class="text-red-600 text-sm mt-1">
+        {{ form.errors.guests }}
+      </p>
+    </div>
+
 
         <!-- Submit -->
         <div class="text-right">

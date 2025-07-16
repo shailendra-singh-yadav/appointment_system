@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\SendAppointmentNotificationInterface;
-use App\Models\Appointment;
+use App\Models\Booking;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AppointmentInvite;
 use Illuminate\Support\Facades\Log;
@@ -11,7 +11,7 @@ use Carbon\Carbon;
 
 class EmailAppointmentNotificationService implements SendAppointmentNotificationInterface
 {
-    public function send(Appointment $appointment, string $to, array $data = []): void
+    public function send(Booking $appointment, string $to, array $data = []): void
     {
         // dd($data);
         $guestName = $data['name'] ?? 'Guest';

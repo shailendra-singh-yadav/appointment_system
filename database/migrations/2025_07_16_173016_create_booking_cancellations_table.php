@@ -11,14 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('appointments', function (Blueprint $table) {
+        Schema::create('booking_cancellations', function (Blueprint $table) {
             $table->id();
-            $table->string('title')->nullable();
-            $table->string('description')->nullable();
-            $table->dateTime('date')->nullable();
-            $table->integer('created_by')->default(0);
+            $table->unsignedBigInteger('booking_id');
+            $table->text('reason')->nullable();
+            $table->timestamp('cancelled_at');
+            $table->enum('is_cancellation_mail', ['0','1']);
             $table->timestamps();
             $table->softDeletes();
+
         });
     }
 
@@ -27,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('appointments');
+        Schema::dropIfExists('booking_cancellations');
     }
 };

@@ -2,10 +2,10 @@
 
 namespace App\Contracts;
 
-use App\Models\Appointment;
+use App\Models\Booking;
 
 interface SendAppointmentNotificationInterface
 {
-    public function send(Appointment $appointment, string $to, array $data = []): void;
+    public function send(Booking $appointment, string $to, array $data = []): void;
 }
 

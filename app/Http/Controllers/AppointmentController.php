@@ -4,12 +4,13 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\Appointment;
+use App\Models\Booking;
 use App\Models\Guest;
 use App\Contracts\SendAppointmentNotificationInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class AppointmentController extends Controller
 {
@@ -18,7 +19,7 @@ class AppointmentController extends Controller
      */
     public function index()
     {
-        $appointments = Appointment::paginate(10);
+        $appointments = Booking::paginate(10);
         //dd($appointments);
         return Inertia::render('Appointments/Index', ['appointments' => $appointments]);
     }
@@ -57,10 +58,11 @@ class AppointmentController extends Controller
 
         try {
             // Create appointment
-            $appointment = Appointment::create([
+            $appointment = Booking::create([
+                'user_id' => Auth::user()->id,
                 'title' => $request->title,
                 'description' => $request->description,
-                'date' => $request->date,
+                'booking_date' => $request->date,
             ]);
 
             // Loop through guests and insert/send
@@ -82,19 +84,25 @@ class AppointmentController extends Controller
 
             DB::commit();
 
-            return redirect()
-                ->route('appointments.index')
-                ->with('success', '✅ Appointment and guests saved successfully!');
+            return redirect()->back()->with('success', 'Data saved successfully!');
+
+            // return response()->json([
+            //         'message' => 'Appointment and guests saved successfully!',
+            //     ], 200);
 
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            Log::error('❌ Appointment booking failed: ' . $e->getMessage());
+            Log::error('Appointment booking failed: ' . $e->getMessage());
 
             return redirect()
                 ->back()
                 ->withInput()
                 ->with('error', 'Something went wrong. Please try again.');
+
+            // return response()->json([
+            //     'message' => 'Something went wrong. Please try again.',
+            // ], 500);
         }
     }
 
@@ -115,7 +123,7 @@ class AppointmentController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Appointment $appointment)
+    public function edit(Booking $appointment)
     {
         // dd($appointment);
         return Inertia::render('Appointments/Create', [
@@ -135,7 +143,7 @@ class AppointmentController extends Controller
             'date' => 'required',
         ]);
 
-        $appointment  = Appointment::create($validated);
+        $appointment  = Booking::create($validated);
 
         foreach ($request->guests as $email) {
             $notifier->send($appointment , $email, [
@@ -153,5 +161,12 @@ class AppointmentController extends Controller
     public function destroy(string $id)
     {
         //
+    }
+
+    
+    public function bookingCancel(string $id)
+    {
+        // dd($id);
+        
     }
 }
