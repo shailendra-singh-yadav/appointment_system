@@ -11,17 +11,36 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use App\Services\BookingService;
 
 class AppointmentController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+
+    protected $bookingService;
+
+    public function __construct(BookingService $bookingService)
     {
-        $appointments = Booking::paginate(10);
-        //dd($appointments);
-        return Inertia::render('Appointments/Index', ['appointments' => $appointments]);
+        $this->bookingService = $bookingService;
+    }
+
+    public function index(Request $request)
+    {
+         $bookingId = $request->get('bookingId');
+
+        // Debug to confirm
+        // dd($bookingId);
+
+        $appointments = $this->bookingService->getBookingsList($request);
+
+        return Inertia::render('Appointments/Index', [
+            'appointments' => $appointments,
+            'filters' => [
+                'bookingId' => $bookingId,
+            ],
+        ]);
     }
 
     /**
@@ -53,7 +72,7 @@ class AppointmentController extends Controller
                 ->withInput()
                 ->with('error', 'Validation failed.');
         }
-
+        
         DB::beginTransaction();
 
         try {

@@ -7,8 +7,10 @@ defineOptions({ layout: MainLayout })
 
 const props = defineProps({
   appointments: Object, // from controller: Appointment::latest()->paginate()
+  filters: Object,
 })
 
+console.log('props:',props.appointments)
 const formatDateTime = (datetime) => {
   if (!datetime) return '-'
   const parsedDate = new Date(datetime) // renamed to avoid conflict
@@ -59,6 +61,16 @@ const formatDateTime = (datetime) => {
             <td class="px-6 py-4 text-sm font-semibold text-gray-800">{{ appointment.title }}</td>
             <td class="px-6 py-4 text-sm text-gray-700">{{ appointment.description }}</td>
             <td class="px-6 py-4 text-sm text-gray-600">{{ formatDateTime(appointment.date) }}</td>
+
+           <Link
+  :href="`/appointments/index?bookingId=${appointment.id}`"
+  class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-2 py-2 rounded-lg shadow transition"
+>
+  View participants
+</Link>
+
+
+
            <Link
             :href="`/appointments/${appointment.id}/edit`"
             class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-2 py-2 rounded-lg shadow transition"
@@ -79,7 +91,7 @@ const formatDateTime = (datetime) => {
     </div>
 
     <!-- No Appointments -->
-    <div v-if="appointments.data.length === 0" class="text-center text-gray-500 mt-8">
+    <div v-if="appointments.length === 0" class="text-center text-gray-500 mt-8">
       No appointments found.
     </div>
   </div>
