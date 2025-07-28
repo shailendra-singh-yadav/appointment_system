@@ -36,8 +36,8 @@ Route::middleware(['auth'])->group(function () {
     //Appointment
     Route::resource('appointments', AppointmentController::class);
     Route::get('appointments.join', [AppointmentController::class, 'join'])->name('appointments.join');
-    Route::get('appointments/{id}/cancel', [AppointmentController::class, 'bookingCancel'])->name('appointments.cancel');
-    // Chat
+    Route::post('/appointments/{booking}/cancel', [AppointmentController::class, 'appointmentCancel'])->name('appointments.cancel');
+
    
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('/chat', [ChatController::class, 'store'])->name('chat.store');

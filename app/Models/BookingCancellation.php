@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class BookingCancellation extends Model
 {
     use SoftDeletes;
-    protected $fillable = ['booking_id', 'reason', 'cancelled_at','status','cancellation_email'];
+    protected $fillable = ['booking_id', 'reason', 'cancelled_at','is_cancellation_mail'];
 
     public function booking()
     {

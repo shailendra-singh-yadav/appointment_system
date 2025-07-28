@@ -18,6 +18,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->dateTime('booking_date');
             $table->enum('status', ['booked', 'cancelled'])->default('booked');
+            $table->string('reminder_preference')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

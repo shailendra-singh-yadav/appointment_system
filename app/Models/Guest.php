@@ -11,5 +11,8 @@ class Guest extends Model
 
     protected $fillable = ['booking_id','email','status','is_mail'];
 
-    
+    public function booking()
+    {
+        return $this->belongsTo(Booking::class);
+    }
 }

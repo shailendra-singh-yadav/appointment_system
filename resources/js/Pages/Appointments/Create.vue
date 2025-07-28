@@ -27,11 +27,16 @@ const props = defineProps({
 
 // Setup form
 const form = useForm({
+  appointment_id: props?.appointment?.id || null,
   title: props?.appointment?.title || '',
-  description: props?.appointment?.description,
-  date: props?.appointment?.date,
-  guests: ['']
+  description: props?.appointment?.description || '',
+  date: props?.appointment?.booking_date
+    ? props.appointment.booking_date.replace(' ', 'T')
+    : '',
+  guests: props?.appointment?.guests?.length ? props.appointment.guests.map(g => g.email) : [''],  //map: find out the email from guest array
+  reminder_preference: props?.appointment?.reminder_preference || '', 
 })
+
 
 // Add/remove guest
 const addGuest = () => form.guests.push('')
@@ -46,31 +51,42 @@ function isWeekday(dateStr) {
   return !isNaN(date) && date.getDay() > 0 && date.getDay() < 6
 }
 
-// Submit handler
 async function submit() {
   if (!isWeekday(form.date)) {
     toast.error('Please select a valid date (Monday to Friday only).')
     return
   }
 
-  try {
-      await form.post('/appointments', {
-        preserveScroll: true,
-          onSuccess: (response) => {
-          toast.success('Appointment booked and invitations sent!')
-          setTimeout(function(){
-            window.location.href=route('appointments.index');
-          },3000)
-        },
-      })
-    } catch (e) {
-      if (Object.values(form.errors).length) {
-        toast.error(Object.values(form.errors)[0])
-      } else {
-        toast.error('Something went wrong, please try again.')
+  const isUpdate = !!props.appointment?.id
+  const url = isUpdate ? `/appointments/${props.appointment.id}` : '/appointments'
+  //const method = isUpdate ? form.put : form.post
+
+  if (isUpdate) {
+    form.put(`/appointments/${props.appointment.id}`, {
+      onSuccess: () => {
+        toast.success('Booking updated successfully!')
+        router.visit('/appointments')
+      },
+      onError: () => {
+        toast.error('Failed to update post')
       }
-    }
+    })
+  } else {
+    form.post('/appointments', {
+      onSuccess: () => {
+        toast.success('Booking created successfully!')
+        router.visit('/appointments')
+      },
+      onError: () => {
+        toast.error('Failed to create post')
+      }
+    })
+  }
+ 
 }
+
+
+
 </script>
 
 <template>
@@ -108,57 +124,76 @@ async function submit() {
         </div>
 
       
-        <!-- Guest Emails -->
-      <div class="mb-6">
-        <label class="block font-medium mb-2">Guest Emails</label>
+          <!-- Guest Emails -->
+          <div class="mb-6">
+            <label class="block font-medium mb-2">Guest Emails</label>
 
-        <div v-for="(email, index) in form.guests" :key="index" class="flex flex-col mb-2">
-          <div class="flex items-center space-x-2">
-            <input
-              v-model="form.guests[index]"
-              type="email"
-              placeholder="guest@example.com"
-              class="flex-1 border rounded px-3 py-2"
-            />
-            <button
-              type="button"
-              v-if="form.guests.length > 1"
-              @click="removeGuest(index)"
-              class="text-red-500 text-lg leading-none"
+            <div v-for="(email, index) in form.guests" :key="index" class="flex flex-col mb-2">
+              <div class="flex items-center space-x-2">
+                <input
+                  v-model="form.guests[index]"
+                  type="email"
+                  placeholder="guest@example.com"
+                  class="flex-1 border rounded px-3 py-2"
+                />
+                <button
+                  type="button"
+                  v-if="form.guests.length > 1"
+                  @click="removeGuest(index)"
+                  class="text-red-500 text-lg leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+            <!-- Show validation error for individual guest -->
+            <p
+              v-if="form.errors[`guests.${index}`]"
+              class="text-red-600 text-sm mt-1"
             >
-              ×
-            </button>
+              {{ form.errors[`guests.${index}`] }}
+            </p>
           </div>
 
-        <!-- Show validation error for individual guest -->
-        <p
-          v-if="form.errors[`guests.${index}`]"
-          class="text-red-600 text-sm mt-1"
-        >
-          {{ form.errors[`guests.${index}`] }}
-        </p>
-      </div>
+          <!-- Button to add guest (outside loop) -->
+          <button type="button" @click="addGuest" class="text-blue-600 mt-1">
+            + Add Guest
+          </button>
 
-      <!-- Button to add guest (outside loop) -->
-      <button type="button" @click="addGuest" class="text-blue-600 mt-1">
-        + Add Guest
-      </button>
+          <!--  Show error if no guests provided -->
+          <p v-if="form.errors.guests" class="text-red-600 text-sm mt-1">
+            {{ form.errors.guests }}
+          </p>
+        </div>
 
-      <!--  Show error if no guests provided -->
-      <p v-if="form.errors.guests" class="text-red-600 text-sm mt-1">
-        {{ form.errors.guests }}
-      </p>
-    </div>
+        <!-- Reminder Preference -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Reminder Preference</label>
+          <select v-model="form.reminder_preference" class="w-full border rounded px-3 py-2">
+            <option value="">Select reminder time</option>
+            <option value="10_minutes">10 minutes before</option>
+            <option value="30_minutes">30 minutes before</option>
+            <option value="1_hour">1 hour before</option>
+            <option value="6_hours">6 hours before</option>
+            <option value="1_day">1 day before</option>
+          </select>
+          <p v-if="form.errors.reminder_preference" class="text-red-600 text-sm">
+            {{ form.errors.reminder_preference }}
+          </p>
+        </div>
 
 
         <!-- Submit -->
         <div class="text-right">
-          <button :disabled="form.processing"
-                  @click="submit"
-                  class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded disabled:opacity-50">
-            Book Appointment
-          </button>
+          <button
+          :disabled="form.processing"
+          @click="submit"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded disabled:opacity-50"
+        >
+          {{ props.appointment ? 'Update Appointment' : 'Book Appointment' }}
+        </button>
         </div>
+
       </div>
     </div>
   </AuthenticatedLayout>

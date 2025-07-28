@@ -11,7 +11,7 @@ class Booking extends Model
     use SoftDeletes;
    
     protected $fillable = [
-        'user_id', 'title', 'description', 'booking_date', 'status','booking_email',
+        'user_id', 'title', 'description', 'booking_date', 'status', 'reminder_preference','booking_email',
     ];
 
     public function user()

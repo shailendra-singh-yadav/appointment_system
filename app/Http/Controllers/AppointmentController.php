@@ -7,11 +7,11 @@ use Inertia\Inertia;
 use App\Models\Booking;
 use App\Models\Guest;
 use App\Contracts\SendAppointmentNotificationInterface;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
 use App\Services\BookingService;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
+
 
 class AppointmentController extends Controller
 {
@@ -20,19 +20,17 @@ class AppointmentController extends Controller
      */
 
     protected $bookingService;
+    protected $notifier;
 
-    public function __construct(BookingService $bookingService)
+    public function __construct(BookingService $bookingService, SendAppointmentNotificationInterface $notifier)
     {
         $this->bookingService = $bookingService;
+        $this->notifier = $notifier;
     }
 
     public function index(Request $request)
     {
-         $bookingId = $request->get('bookingId');
-
-        // Debug to confirm
-        // dd($bookingId);
-
+        $bookingId = $request->get('bookingId');
         $appointments = $this->bookingService->getBookingsList($request);
 
         return Inertia::render('Appointments/Index', [
@@ -40,8 +38,12 @@ class AppointmentController extends Controller
             'filters' => [
                 'bookingId' => $bookingId,
             ],
+            'section' => !empty($bookingId) ? 'guest' : '',
         ]);
+
     }
+
+
 
     /**
      * Show the form for creating a new resource.
@@ -49,7 +51,6 @@ class AppointmentController extends Controller
     public function create()
     {
         return Inertia::render('Appointments/Create');
-        
     }
 
     /**
@@ -64,6 +65,7 @@ class AppointmentController extends Controller
             'date' => 'required|date',
             'guests' => 'required|array|min:1',
             'guests.*' => 'required|email',
+            'reminder_preference' => 'nullable|string|in:10_minutes,30_minutes,1_hour,6_hours,1_day',
         ]);
 
         if ($validator->fails()) {
@@ -72,58 +74,17 @@ class AppointmentController extends Controller
                 ->withInput()
                 ->with('error', 'Validation failed.');
         }
-        
-        DB::beginTransaction();
 
         try {
-            // Create appointment
-            $appointment = Booking::create([
-                'user_id' => Auth::user()->id,
-                'title' => $request->title,
-                'description' => $request->description,
-                'booking_date' => $request->date,
-            ]);
-
-            // Loop through guests and insert/send
-            foreach ($request->guests as $email) {
-                // Send email
-                $notifier->send($appointment, $email, [
-                    'name' => 'Guest User',
-                    'join_link' => route('appointments.join', $appointment),
-                ]);
-
-                // Save guest
-                Guest::create([
-                    'booking_id' => $appointment->id,
-                    'email' => $email,
-                    'status' => '1',
-                    'is_mail' => '1',
-                ]);
-            }
-
-            DB::commit();
-
-            return redirect()->back()->with('success', 'Data saved successfully!');
-
-            // return response()->json([
-            //         'message' => 'Appointment and guests saved successfully!',
-            //     ], 200);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            Log::error('Appointment booking failed: ' . $e->getMessage());
-
-            return redirect()
-                ->back()
+            $response = $this->bookingService->createBooking($request, $notifier);
+            return redirect()->back()->with('success', $response['message']);
+        } catch (\Exception $e) {
+            return redirect()->back()
                 ->withInput()
                 ->with('error', 'Something went wrong. Please try again.');
-
-            // return response()->json([
-            //     'message' => 'Something went wrong. Please try again.',
-            // ], 500);
         }
     }
+
 
 
 
@@ -146,46 +107,72 @@ class AppointmentController extends Controller
     {
         // dd($appointment);
         return Inertia::render('Appointments/Create', [
-            'appointment' => $appointment,
+            'appointment' => $appointment->load('guests'),  //guests relationship load
         ]);
-        
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, SendAppointmentNotificationInterface $notifier)
+    public function update(Request $request, Booking $booking)
     {
         $validated = $request->validate([
+            'appointment_id' => 'required|exists:bookings,id',
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'date' => 'required',
+            'date' => 'required|date',
+            'guests' => 'required|array|min:1',
+            'guests.*' => 'required|email',
         ]);
 
-        $appointment  = Booking::create($validated);
-
-        foreach ($request->guests as $email) {
-            $notifier->send($appointment , $email, [
-                'name' => 'Guest User', // Optional
-                'join_link' => route('appointments.join', $appointment ),
-            ]);
+        try {
+            $response = $this->bookingService->updateBooking($request, $this->notifier);
+            return redirect()->back()->with('success', $response['message']);
+        } 
+        catch (\Exception $e) {
+            Log::error('Appointment update failed: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Something went wrong. Please try again.');
         }
-
-        return redirect()->route('appointments.index')->with('success', 'Appointment booked successfully!');
     }
+
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Booking $appointment)
     {
-        //
+       // dd($appointment->id);
+        // Delete all related guests
+        $appointment->guests()->delete();
+
+        // Optionally delete cancellation record too
+        $appointment->cancellation()->delete();
+
+        // Soft-delete the booking itself
+        $appointment->delete();
+
+        return redirect()->route('appointments.index')
+                        ->with('success', 'Booking and related records deleted successfully.');
     }
 
+
     
-    public function bookingCancel(string $id)
+    public function appointmentCancel(Booking $booking)
     {
-        // dd($id);
-        
+        if(empty($booking->id)){
+            return redirect()->route('appointments.index')->with('error', 'Booking ID Must not Empty!');
+        }
+
+        $response = $this->bookingService->appointmentCancel($booking->id, $this->notifier);
+        $data = $response->getData();  // This gives you stdClass object from JsonResponse
+      
+        return response()->json([
+            'success' => $data->success,
+            'message' => $data->message,
+        ]);
+   
     }
+
+
+
 }
